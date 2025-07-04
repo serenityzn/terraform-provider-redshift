@@ -39,5 +39,6 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GPG_FINGERPRINT: ${{ steps.import_gpg.outputs.fingerprint }}
+          GPG_KEY_ID: ${{ steps.import_gpg.outputs.keyid }}
           TF_REGISTRY_DISCOVERY_RETRY: 1
           TF_REGISTRY_DISCOVERY_RETRY_DELAY: 5 

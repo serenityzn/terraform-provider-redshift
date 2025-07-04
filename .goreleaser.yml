@@ -55,8 +55,8 @@ changelog:
 
 signs:
   - env:
-      - GITHUB_TOKEN
-    args: ["--batch", "--yes", "--detach-sign", "--armor", "--output", "${signature}", "${artifact}"]
+      - GPG_FINGERPRINT
+    args: ["--batch", "--yes", "--detach-sign", "--armor", "--local-user", "{{ .Env.GPG_FINGERPRINT }}", "--output", "${signature}", "${artifact}"]
     artifacts: all
 
 release:
