@@ -54,7 +54,8 @@ changelog:
       - Merge branch
 
 signs:
-  - env: GITHUB_TOKEN
+  - env:
+      - GITHUB_TOKEN
     args: ["--batch", "--yes", "--detach-sign", "--armor", "--output", "${signature}", "${artifact}"]
     artifacts: all
 
