@@ -53,23 +53,6 @@ changelog:
       - Merge pull request
       - Merge branch
 
-brews:
-  - name: terraform-provider-redshift
-    repository:
-      owner: serenityzn
-      name: homebrew-tap
-    commit_author:
-      name: goreleaserbot
-      email: goreleaser@carlosbecker.com
-    homepage: "https://github.com/serenityzn/terraform-provider-redshift"
-    description: "Terraform provider for AWS Redshift"
-    test: |
-      system "#{bin}/terraform-provider-redshift", "version"
-    install: |
-      bin.install "terraform-provider-redshift"
-    dependencies:
-      - terraform
-
 release:
   name_template: '{{ .ProjectName }} {{ .Tag }}'
   draft: true
