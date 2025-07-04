@@ -21,9 +21,6 @@ builds:
     binary: terraform-provider-redshift
     ldflags:
       - -s -w
-    overrides:
-      - goos: windows
-        binary: terraform-provider-redshift.exe
 
 archives:
   - format: zip
