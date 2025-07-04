@@ -8,6 +8,7 @@ on:
 permissions:
   contents: write
   packages: write
+  id-token: write
 
 jobs:
   goreleaser:
@@ -23,6 +24,13 @@ jobs:
         with:
           go-version: '1.17'
       
+      - name: Import GPG key
+        id: import_gpg
+        uses: crazy-max/ghaction-import-gpg@v6
+        with:
+          gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
+          passphrase: ${{ secrets.PASSPHRASE }}
+      
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v4
         with:
@@ -30,5 +38,6 @@ jobs:
           args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GPG_FINGERPRINT: ${{ steps.import_gpg.outputs.fingerprint }}
           TF_REGISTRY_DISCOVERY_RETRY: 1
           TF_REGISTRY_DISCOVERY_RETRY_DELAY: 5 
