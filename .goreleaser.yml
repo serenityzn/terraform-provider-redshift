@@ -54,10 +54,8 @@ changelog:
       - Merge branch
 
 signs:
-  - env:
-      - GPG_KEY_ID
-    args: ["--batch", "--yes", "--detach-sign", "--armor", "--local-user", "{{ .Env.GPG_KEY_ID }}", "--output", "${signature}", "${artifact}"]
-    artifacts: all
+  - artifacts: checksum
+    args: ["--batch", "-u", "{{ .Env.GPG_FINGERPRINT }}", "--output", "${signature}", "--detach-sign", "${artifact}"]
 
 release:
   name_template: '{{ .ProjectName }} {{ .Tag }}'
