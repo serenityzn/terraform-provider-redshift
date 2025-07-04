@@ -3,8 +3,7 @@ package main
 import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/plugin"
-
-	"github.com/ODDITY-Tech-LTD/terraform-provider-redshift/redshift"
+	"github.com/serenityzn/terraform-provider-redshift/redshift"
 )
 
 //go:generate go run github.com/hashicorp/terraform-plugin-docs/cmd/tfplugindocs

@@ -37,7 +37,7 @@ changelog: ## Generate CHANGELOG
 		-v $$PWD:/usr/local/src/your-app \
 		-e CHANGELOG_GITHUB_TOKEN=$$CHANGELOG_GITHUB_TOKEN \
 		ferrarimarco/github-changelog-generator \
-		--user ODDITY-Tech-LTD \
+		--user serenityzn \
 		--project terraform-provider-redshift \
 		--future-release $$RELEASE_VERSION
 	@git add CHANGELOG.md && git commit -m "Release $$RELEASE_VERSION"
@@ -47,6 +47,14 @@ release: ## Release new provider version
 	@test $${RELEASE_VERSION?Please set environment variable RELEASE_VERSION}
 	@git tag $$RELEASE_VERSION
 	@git push origin $$RELEASE_VERSION
+
+.PHONY: release-dry-run
+release-dry-run: ## Test release without publishing
+	goreleaser release --snapshot --clean --skip-publish
+
+.PHONY: release-local
+release-local: ## Build release locally
+	goreleaser build --snapshot --clean
 
 .PHONY: doc
 doc: ## Generate documentation files

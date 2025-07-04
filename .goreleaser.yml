@@ -1,0 +1,96 @@
+before:
+  hooks:
+    - go mod tidy
+    - go generate ./...
+
+builds:
+  - env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - windows
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+    ignore:
+      - goos == "windows" && goarch == "arm64"
+    binary: terraform-provider-redshift
+    ldflags:
+      - -s -w
+    overrides:
+      - goos: windows
+        binary: terraform-provider-redshift.exe
+
+archives:
+  - format: zip
+    name_template: >-
+      {{ .ProjectName }}_
+      {{- title .Os }}_
+      {{- if eq .Arch "amd64" }}x86_64
+      {{- else }}{{ .Arch }}{{ end }}
+    format_overrides:
+      - goos: windows
+        format: zip
+    files:
+      - README.md
+      - LICENSE
+      - CHANGELOG.md
+
+checksum:
+  name_template: 'checksums.txt'
+
+snapshot:
+  name_template: "{{ incpatch .Version }}-next"
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - '^docs:'
+      - '^test:'
+      - '^ci:'
+      - Merge pull request
+      - Merge branch
+
+brews:
+  - name: terraform-provider-redshift
+    repository:
+      owner: serenityzn
+      name: homebrew-tap
+    commit_author:
+      name: goreleaserbot
+      email: goreleaser@carlosbecker.com
+    folder: Formula
+    homepage: "https://github.com/serenityzn/terraform-provider-redshift"
+    description: "Terraform provider for AWS Redshift"
+    test: |
+      system "#{bin}/terraform-provider-redshift", "version"
+    install: |
+      bin.install "terraform-provider-redshift"
+    dependencies:
+      - terraform
+
+release:
+  name_template: '{{ .ProjectName }} {{ .Tag }}'
+  draft: true
+
+dist: dist
+
+# Terraform Registry
+terraform:
+  provider_name: redshift
+  namespace: serenityzn
+  provider_name_override: redshift
+  builds_info:
+    - name: terraform-provider-redshift
+      version: "{{ .Version }}"
+      hcl_example: |
+        terraform {
+          required_providers {
+            redshift = {
+              source = "serenityzn/redshift"
+              version = "{{ .Version }}"
+            }
+          }
+        } 

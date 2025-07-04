@@ -1,8 +1,8 @@
 # Changelog
 
-## [v1.2.0](https://github.com/oddity-tech-ltd/terraform-provider-redshift/tree/v1.2.0) (2024-12-19)
+## [v1.2.0](https://github.com/serenityzn/terraform-provider-redshift/tree/v1.2.0) (2024-12-19)
 
-[Full Changelog](https://github.com/oddity-tech-ltd/terraform-provider-redshift/compare/v1.1.0...v1.2.0)
+[Full Changelog](https://github.com/serenityzn/terraform-provider-redshift/compare/v1.1.0...v1.2.0)
 
 **Implemented enhancements:**
 

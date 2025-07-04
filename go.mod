@@ -1,4 +1,4 @@
-module github.com/ODDITY-Tech-LTD/terraform-provider-redshift
+module github.com/serenityzn/terraform-provider-redshift
 
 go 1.17
 

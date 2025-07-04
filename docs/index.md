@@ -61,6 +61,7 @@ provider "redshift" {
 - **port** (Number) The Redshift port number to connect to at the server host.
 - **sslmode** (String) This option determines whether or with what priority a secure SSL TCP/IP connection will be negotiated with the Redshift server. Valid values are `require` (default, always SSL, also skip verification), `verify-ca` (always SSL, verify that the certificate presented by the server was signed by a trusted CA), `verify-full` (always SSL, verify that the certification presented by the server was signed by a trusted CA and the server host name matches the one in the certificate), `disable` (no SSL).
 - **temporary_credentials** (Block List, Max: 1) Configuration for obtaining a temporary password using redshift:GetClusterCredentials (see [below for nested schema](#nestedblock--temporary_credentials))
+- **type** (String) The type of Redshift deployment. Use 'serverless' for Redshift Serverless, omit for regular Redshift clusters.
 - **username** (String) Redshift user name to connect as.
 
 <a id="nestedblock--temporary_credentials"></a>
