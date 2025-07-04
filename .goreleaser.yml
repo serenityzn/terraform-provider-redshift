@@ -1,5 +1,6 @@
 # Visit https://goreleaser.com for documentation on how to customize this
 # behavior.
+# Update the project name below if needed for your fork
 before:
   hooks:
     # this is just an example and not a requirement for provider building/publishing
@@ -48,7 +49,7 @@ signs:
       - "--detach-sign"
       - "${artifact}"
 release:
-  # If you want to manually examine the release before it's live, uncomment this line:
+  # Remove draft: true to publish releases immediately
   draft: true
 changelog:
   skip: true

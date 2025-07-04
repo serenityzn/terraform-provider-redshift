@@ -70,6 +70,16 @@ func Provider() *schema.Provider {
 				Description: "The name of the database to connect to. The default is `redshift`.",
 				DefaultFunc: schema.EnvDefaultFunc("REDSHIFT_DATABASE", "redshift"),
 			},
+			"type": {
+				Type:        schema.TypeString,
+				Optional:    true,
+				Description: "The type of Redshift deployment. Use 'serverless' for Redshift Serverless, omit for regular Redshift clusters.",
+				DefaultFunc: schema.EnvDefaultFunc("REDSHIFT_TYPE", ""),
+				ValidateFunc: validation.StringInSlice([]string{
+					"",
+					"serverless",
+				}, false),
+			},
 			"max_connections": {
 				Type:         schema.TypeInt,
 				Optional:     true,
@@ -160,6 +170,7 @@ func providerConfigure(d *schema.ResourceData) (interface{}, error) {
 		Database: d.Get("database").(string),
 		SSLMode:  d.Get("sslmode").(string),
 		MaxConns: d.Get("max_connections").(int),
+		Type:     d.Get("type").(string),
 	}
 
 	log.Println("[DEBUG] creating database client")

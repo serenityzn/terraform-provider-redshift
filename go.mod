@@ -1,4 +1,4 @@
-module github.com/brainly/terraform-provider-redshift
+module github.com/ODDITY-Tech-LTD/terraform-provider-redshift
 
 go 1.17
 

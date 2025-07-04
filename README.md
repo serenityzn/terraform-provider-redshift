@@ -1,13 +1,49 @@
-# Terraform Provider for AWS Redshift
+# Terraform Provider for AWS Redshift (Fork with Serverless Support)
 
-> [!WARNING]
-> Deprecated: This repository is no longer maintained
+> [!NOTE]
+> This is a forked version of the original [brainly/terraform-provider-redshift](https://github.com/brainly/terraform-provider-redshift) repository.
+> 
+> **Original Repository Status:** Deprecated - The original repository is no longer maintained.
 >
-> We will no longer develop or support this Terraform provider. Please consider alternative solutions or forks for your requirements.
+> **This Fork:** Adds support for AWS Redshift Serverless features and continues maintenance.
 
-This provider allows to manage with Terraform [AWS Redshift](https://aws.amazon.com/redshift/) objects like users, groups, schemas, etc..
+This provider allows to manage with Terraform [AWS Redshift](https://aws.amazon.com/redshift/) objects like users, groups, schemas, etc., including support for Redshift Serverless.
 
-It's published on the [Terraform registry](https://registry.terraform.io/providers/brainly/redshift/latest/docs).
+It's published on the [Terraform registry](https://registry.terraform.io/providers/oddity-tech-ltd/redshift/latest/docs).
+
+## Features
+
+- **Redshift Serverless Support**: Use the `type = "serverless"` parameter to work with Redshift Serverless deployments
+- **Backward Compatibility**: Works with regular Redshift clusters when `type` is omitted or empty
+- **All Original Features**: Users, groups, schemas, grants, and more
+
+## Provider Configuration
+
+### For Redshift Serverless
+```hcl
+provider "redshift" {
+  host     = "your-serverless-endpoint.redshift-serverless.amazonaws.com"
+  username = "your_username"
+  password = "your_password"
+  database = "your_database"
+  port     = 5439
+  sslmode  = "require"
+  type     = "serverless"  # Required for Redshift Serverless
+}
+```
+
+### For Regular Redshift Clusters
+```hcl
+provider "redshift" {
+  host     = "your-cluster.redshift.amazonaws.com"
+  username = "your_username"
+  password = "your_password"
+  database = "your_database"
+  port     = 5439
+  sslmode  = "require"
+  # type parameter omitted for regular clusters
+}
+```
 
 ## Requirements
 
@@ -17,7 +53,7 @@ It's published on the [Terraform registry](https://registry.terraform.io/provide
 ## Building The Provider
 
 ```sh
-$ git clone git@github.com:brainly/terraform-provider-redshift
+$ git clone git@github.com:YOUR_USERNAME/terraform-provider-redshift
 ```
 
 Enter the provider directory and build the provider
@@ -98,3 +134,34 @@ Currently there are a few manual steps to this:
    The Action creates the release, but leaves it in "draft" state. Open it up in
    a [browser](https://github.com/brainly/terraform-provider-redshift/releases)
    and if all looks well, click the publish button.
+
+## Final Solution: Use a Local Provider Plugin Directory
+
+The most reliable way to test your local provider is to use a local plugin directory. Here's what you need to do:
+
+### Step 1: Create a Local Plugin Directory
+```bash
+mkdir -p ~/.terraform.d/plugins/registry.terraform.io/oddity-tech-ltd/redshift/1.0.0/darwin_arm64/
+```
+
+### Step 2: Copy Your Provider
+```bash
+cp /Users/volodymyrl/.asdf/installs/golang/1.24.2/bin/terraform-provider-redshift ~/.terraform.d/plugins/registry.terraform.io/oddity-tech-ltd/redshift/1.0.0/darwin_arm64/terraform-provider-redshift_v1.0.0
+```
+
+### Step 3: Remove .terraformrc
+```bash
+rm ~/.terraformrc
+```
+
+### Step 4: Test
+```bash
+cd /Users/volodymyrl/ODDITY/projects/infra-terragrunt-code/live/brand3/stg/us-east-1/datateam/glue-provider
+terragrunt plan --non-interactive
+```
+
+This approach:
+- ✅ **Completely bypasses registry queries**
+- ✅ **Works with Terragrunt**
+- ✅ **Uses your local provider**
+- ✅ **Is the standard way to test providers locally**

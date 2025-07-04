@@ -65,33 +65,66 @@ func dataSourceRedshiftUserRead(db *DBConnection, d *schema.ResourceData) error 
 	var useSysID, userValidUntil, userConnLimit, userSyslogAccess, userSessionTimeout string
 	var userSuperuser, userCreateDB bool
 
-	columns := []string{
-		"usesysid",
-		"usecreatedb",
-		"usesuper",
-		"syslogaccess",
-		`COALESCE(useconnlimit::TEXT, 'UNLIMITED')`,
-		"sessiontimeout",
-	}
-
-	values := []interface{}{
-		&useSysID,
-		&userCreateDB,
-		&userSuperuser,
-		&userSyslogAccess,
-		&userConnLimit,
-		&userSessionTimeout,
-	}
-
 	userName := d.Get(userNameAttr).(string)
 
-	userSQL := fmt.Sprintf("SELECT %s FROM svl_user_info WHERE usename = $1", strings.Join(columns, ","))
-	err := db.QueryRow(userSQL, userName).Scan(values...)
-	if err != nil {
-		return err
+	// Use different queries based on Redshift type
+	if db.client.config.Type == "serverless" {
+		// For Redshift Serverless, use pg_user_info with available columns
+		columns := []string{
+			"usesysid",
+			"usecreatedb",
+			"usesuper",
+			"COALESCE(useconnlimit::TEXT, 'UNLIMITED')",
+		}
+
+		values := []interface{}{
+			&useSysID,
+			&userCreateDB,
+			&userSuperuser,
+			&userConnLimit,
+		}
+
+		userSQL := fmt.Sprintf("SELECT %s FROM pg_user_info WHERE usename = $1", strings.Join(columns, ","))
+		err := db.QueryRow(userSQL, userName).Scan(values...)
+		if err != nil {
+			return err
+		}
+
+		// For serverless, set default values for missing columns
+		userSessionTimeout = "0" // Default session timeout
+		if userSuperuser {
+			userSyslogAccess = "UNRESTRICTED"
+		} else {
+			userSyslogAccess = "RESTRICTED"
+		}
+	} else {
+		// For regular Redshift, use svl_user_info with all columns
+		columns := []string{
+			"usesysid",
+			"usecreatedb",
+			"usesuper",
+			"syslogaccess",
+			`COALESCE(useconnlimit::TEXT, 'UNLIMITED')`,
+			"sessiontimeout",
+		}
+
+		values := []interface{}{
+			&useSysID,
+			&userCreateDB,
+			&userSuperuser,
+			&userSyslogAccess,
+			&userConnLimit,
+			&userSessionTimeout,
+		}
+
+		userSQL := fmt.Sprintf("SELECT %s FROM svl_user_info WHERE usename = $1", strings.Join(columns, ","))
+		err := db.QueryRow(userSQL, userName).Scan(values...)
+		if err != nil {
+			return err
+		}
 	}
 
-	err = db.QueryRow("SELECT COALESCE(valuntil, 'infinity') FROM pg_user_info WHERE usesysid = $1", useSysID).Scan(&userValidUntil)
+	err := db.QueryRow("SELECT COALESCE(valuntil, 'infinity') FROM pg_user_info WHERE usesysid = $1", useSysID).Scan(&userValidUntil)
 	if err != nil {
 		return err
 	}

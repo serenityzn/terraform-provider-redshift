@@ -1,5 +1,21 @@
 # Changelog
 
+## [v1.2.0](https://github.com/oddity-tech-ltd/terraform-provider-redshift/tree/v1.2.0) (2024-12-19)
+
+[Full Changelog](https://github.com/oddity-tech-ltd/terraform-provider-redshift/compare/v1.1.0...v1.2.0)
+
+**Implemented enhancements:**
+
+- Add support for Redshift Serverless deployments
+- Add `type` parameter to provider configuration to distinguish between regular Redshift clusters and Redshift Serverless
+- Use `pg_user_info` instead of `svl_user_info` for Redshift Serverless user operations
+- Handle missing `sessiontimeout` and `syslogaccess` columns in Redshift Serverless
+
+**Fixed bugs:**
+
+- Fix permission denied errors when reading user information from `svl_user_info` in Redshift Serverless
+- Handle different column structures between regular Redshift and Redshift Serverless
+
 ## [v1.1.0](https://github.com/brainly/terraform-provider-redshift/tree/v1.1.0) (2023-01-31)
 
 [Full Changelog](https://github.com/brainly/terraform-provider-redshift/compare/v1.0.4...v1.1.0)

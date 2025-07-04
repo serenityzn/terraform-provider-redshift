@@ -24,6 +24,7 @@ type Config struct {
 	Database string
 	SSLMode  string
 	MaxConns int
+	Type     string
 }
 
 // Client struct holding connection string
