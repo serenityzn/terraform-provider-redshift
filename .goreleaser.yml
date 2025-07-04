@@ -55,8 +55,8 @@ changelog:
 
 signs:
   - env:
-      - GPG_FINGERPRINT
-    args: ["--batch", "--yes", "--detach-sign", "--armor", "--local-user", "{{ .Env.GPG_FINGERPRINT }}", "--output", "${signature}", "${artifact}"]
+      - GPG_KEY_ID
+    args: ["--batch", "--yes", "--detach-sign", "--armor", "--local-user", "{{ .Env.GPG_KEY_ID }}", "--output", "${signature}", "${artifact}"]
     artifacts: all
 
 release:
