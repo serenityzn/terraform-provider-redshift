@@ -31,6 +31,9 @@ jobs:
           gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
           passphrase: ${{ secrets.PASSPHRASE }}
       
+      - name: List GPG keys
+        run: gpg --list-secret-keys
+      
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v4
         with:
