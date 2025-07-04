@@ -53,6 +53,11 @@ changelog:
       - Merge pull request
       - Merge branch
 
+signs:
+  - env: GITHUB_TOKEN
+    args: ["--batch", "--yes", "--detach-sign", "--armor", "--output", "${signature}", "${artifact}"]
+    artifacts: all
+
 release:
   name_template: '{{ .ProjectName }} {{ .Tag }}'
   draft: true
