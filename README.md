@@ -9,7 +9,7 @@
 
 This provider allows to manage with Terraform [AWS Redshift](https://aws.amazon.com/redshift/) objects like users, groups, schemas, etc., including support for Redshift Serverless.
 
-It's published on the [Terraform registry](https://registry.terraform.io/providers/oddity-tech-ltd/redshift/latest/docs).
+It's published on the [Terraform registry](https://registry.terraform.io/providers/serenityzn/redshift/latest/docs).
 
 ## Features
 
@@ -127,41 +127,47 @@ Currently there are a few manual steps to this:
    ```
 
    Once the command exits, you can monitor the rest of the process on the
-   [Actions UI](https://github.com/brainly/terraform-provider-redshift/actions?query=workflow%3Arelease).
+   [Actions UI](https://github.com/serenityzn/terraform-provider-redshift/actions?query=workflow%3Arelease).
 
 4. Publish release:
 
    The Action creates the release, but leaves it in "draft" state. Open it up in
-   a [browser](https://github.com/brainly/terraform-provider-redshift/releases)
+   a [browser](https://github.com/serenityzn/terraform-provider-redshift/releases)
    and if all looks well, click the publish button.
 
-## Final Solution: Use a Local Provider Plugin Directory
+## Local Development and Testing
 
-The most reliable way to test your local provider is to use a local plugin directory. Here's what you need to do:
+To test your local provider build, you can use a local plugin directory:
 
-### Step 1: Create a Local Plugin Directory
+### Step 1: Build the Provider
 ```bash
-mkdir -p ~/.terraform.d/plugins/registry.terraform.io/oddity-tech-ltd/redshift/1.0.0/darwin_arm64/
+make build
 ```
 
-### Step 2: Copy Your Provider
+### Step 2: Create a Local Plugin Directory
 ```bash
-cp /Users/volodymyrl/.asdf/installs/golang/1.24.2/bin/terraform-provider-redshift ~/.terraform.d/plugins/registry.terraform.io/oddity-tech-ltd/redshift/1.0.0/darwin_arm64/terraform-provider-redshift_v1.0.0
+# For macOS ARM64 (adjust OS/architecture as needed)
+mkdir -p ~/.terraform.d/plugins/registry.terraform.io/serenityzn/redshift/99.0.0/darwin_arm64/
 ```
 
-### Step 3: Remove .terraformrc
+### Step 3: Copy Your Provider
 ```bash
-rm ~/.terraformrc
+cp $GOPATH/bin/terraform-provider-redshift ~/.terraform.d/plugins/registry.terraform.io/serenityzn/redshift/99.0.0/darwin_arm64/terraform-provider-redshift_v99.0.0
 ```
 
-### Step 4: Test
-```bash
-cd /Users/volodymyrl/ODDITY/projects/infra-terragrunt-code/live/brand3/stg/us-east-1/datateam/glue-provider
-terragrunt plan --non-interactive
+### Step 4: Use in Terraform
+```hcl
+terraform {
+  required_providers {
+    redshift = {
+      source  = "serenityzn/redshift"
+      version = "99.0.0"
+    }
+  }
+}
 ```
 
 This approach:
-- ✅ **Completely bypasses registry queries**
-- ✅ **Works with Terragrunt**
-- ✅ **Uses your local provider**
+- ✅ **Uses your local provider build**
+- ✅ **Works with Terraform and Terragrunt**
 - ✅ **Is the standard way to test providers locally**

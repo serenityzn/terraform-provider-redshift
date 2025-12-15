@@ -37,7 +37,7 @@ changelog: ## Generate CHANGELOG
 		-v $$PWD:/usr/local/src/your-app \
 		-e CHANGELOG_GITHUB_TOKEN=$$CHANGELOG_GITHUB_TOKEN \
 		ferrarimarco/github-changelog-generator \
-		--user ODDITY-Tech-LTD \
+		--user serenityzn \
 		--project terraform-provider-redshift \
 		--future-release $$RELEASE_VERSION
 	@git add CHANGELOG.md && git commit -m "Release $$RELEASE_VERSION"
