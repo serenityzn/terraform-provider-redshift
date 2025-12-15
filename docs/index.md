@@ -2,27 +2,43 @@
 layout: ""
 page_title: "Provider: Redshift"
 description: |-
-  The Redshift provider provides configuration management resources for AWS Redshift.
+  The Redshift provider provides configuration management resources for AWS Redshift, including Redshift Serverless.
 ---
 
 # Redshift Provider
 
 The Redshift provider provides configuration management resources for
-[AWS Redshift](https://aws.amazon.com/redshift/).
+[AWS Redshift](https://aws.amazon.com/redshift/), including **Redshift Serverless** support.
+
+~> **Note:** This is a community-maintained fork that adds Redshift Serverless support and continues active development.
 
 ## Example Usage
 
-### Authentication using fixed password
+### Redshift Serverless with fixed password
 
 ```terraform
 provider "redshift" {
-  host     = var.redshift_host
+  host     = "your-workgroup.123456789.us-east-1.redshift-serverless.amazonaws.com"
   username = var.redshift_user
   password = var.redshift_password
+  database = "dev"
+  type     = "serverless"  # Required for Redshift Serverless
 }
 ```
 
-### Authentication using temporary credentials
+### Regular Redshift Cluster with fixed password
+
+```terraform
+provider "redshift" {
+  host     = "my-cluster.123456789.us-east-1.redshift.amazonaws.com"
+  username = var.redshift_user
+  password = var.redshift_password
+  database = "dev"
+  # type parameter omitted for regular Redshift clusters
+}
+```
+
+### Authentication using temporary credentials (Redshift Cluster)
 
 ```terraform
 provider "redshift" {
@@ -33,6 +49,8 @@ provider "redshift" {
   }
 }
 ```
+
+~> **Note:** Temporary credentials using `redshift:GetClusterCredentials` are only supported for traditional Redshift clusters, not Serverless. For Serverless, use fixed password authentication or IAM database authentication.
 
 ### Authentication using temporary credentials in cross-account scenario
 
@@ -61,6 +79,7 @@ provider "redshift" {
 - **port** (Number) The Redshift port number to connect to at the server host.
 - **sslmode** (String) This option determines whether or with what priority a secure SSL TCP/IP connection will be negotiated with the Redshift server. Valid values are `require` (default, always SSL, also skip verification), `verify-ca` (always SSL, verify that the certificate presented by the server was signed by a trusted CA), `verify-full` (always SSL, verify that the certification presented by the server was signed by a trusted CA and the server host name matches the one in the certificate), `disable` (no SSL).
 - **temporary_credentials** (Block List, Max: 1) Configuration for obtaining a temporary password using redshift:GetClusterCredentials (see [below for nested schema](#nestedblock--temporary_credentials))
+- **type** (String) The type of Redshift deployment. Use 'serverless' for Redshift Serverless, omit for regular Redshift clusters.
 - **username** (String) Redshift user name to connect as.
 
 <a id="nestedblock--temporary_credentials"></a>

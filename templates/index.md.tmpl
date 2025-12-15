@@ -2,23 +2,31 @@
 layout: ""
 page_title: "Provider: Redshift"
 description: |-
-  The Redshift provider provides configuration management resources for AWS Redshift.
+  The Redshift provider provides configuration management resources for AWS Redshift, including Redshift Serverless.
 ---
 
 # Redshift Provider
 
 The Redshift provider provides configuration management resources for
-[AWS Redshift](https://aws.amazon.com/redshift/).
+[AWS Redshift](https://aws.amazon.com/redshift/), including **Redshift Serverless** support.
+
+~> **Note:** This is a community-maintained fork that adds Redshift Serverless support and continues active development.
 
 ## Example Usage
 
-### Authentication using fixed password
+### Redshift Serverless with fixed password
 
 {{ tffile "examples/provider/provider.tf" }}
 
-### Authentication using temporary credentials
+### Regular Redshift Cluster with fixed password
+
+{{ tffile "examples/provider/provider_cluster.tf" }}
+
+### Authentication using temporary credentials (Redshift Cluster)
 
 {{ tffile "examples/provider/provider_using_temporary_credentials.tf" }}
+
+~> **Note:** Temporary credentials using `redshift:GetClusterCredentials` are only supported for traditional Redshift clusters, not Serverless. For Serverless, use fixed password authentication or IAM database authentication.
 
 ### Authentication using temporary credentials in cross-account scenario
 

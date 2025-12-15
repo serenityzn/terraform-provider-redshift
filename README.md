@@ -1,4 +1,4 @@
-# Terraform Provider for AWS Redshift (Fork with Serverless Support).
+# Terraform Provider for AWS Redshift (Fork with Serverless Support)
 
 > [!NOTE]
 > This is a forked version of the original [brainly/terraform-provider-redshift](https://github.com/brainly/terraform-provider-redshift) repository.
@@ -7,41 +7,70 @@
 >
 > **This Fork:** Adds support for AWS Redshift Serverless features and continues maintenance.
 
-This provider allows to manage with Terraform [AWS Redshift](https://aws.amazon.com/redshift/) objects like users, groups, schemas, etc., including support for Redshift Serverless.
+This provider allows you to manage [AWS Redshift](https://aws.amazon.com/redshift/) objects with Terraform, including users, groups, schemas, databases, and permissions. 
 
-It's published on the [Terraform registry](https://registry.terraform.io/providers/serenityzn/redshift/latest/docs).
+**✨ Key Addition:** Full support for **AWS Redshift Serverless** alongside traditional Redshift clusters.
+
+📖 Full documentation available on the [Terraform Registry](https://registry.terraform.io/providers/serenityzn/redshift/latest/docs).
 
 ## Features
 
-- **Redshift Serverless Support**: Use the `type = "serverless"` parameter to work with Redshift Serverless deployments
-- **Backward Compatibility**: Works with regular Redshift clusters when `type` is omitted or empty
-- **All Original Features**: Users, groups, schemas, grants, and more
+- 🚀 **Redshift Serverless Support**: Use `type = "serverless"` to work with Redshift Serverless workgroups
+- ⚙️ **Redshift Cluster Support**: Works with traditional provisioned Redshift clusters (default behavior)
+- 🔐 **Multiple Authentication Methods**: Fixed passwords, temporary credentials, and cross-account roles
+- 📦 **Complete Resource Management**: Users, groups, schemas, databases, grants, default privileges, and datashares
+- 🔄 **Backward Compatible**: Drop-in replacement for the original provider
 
-## Provider Configuration
+## Quick Start
 
-### For Redshift Serverless
+### Step 1: Add Provider to Configuration
+
+```hcl
+terraform {
+  required_providers {
+    redshift = {
+      source  = "serenityzn/redshift"
+      version = "~> 1.0"
+    }
+  }
+}
+```
+
+### Step 2: Configure Provider
+
+#### For Redshift Serverless
 ```hcl
 provider "redshift" {
-  host     = "your-serverless-endpoint.redshift-serverless.amazonaws.com"
-  username = "your_username"
-  password = "your_password"
-  database = "your_database"
-  port     = 5439
-  sslmode  = "require"
+  host     = "your-workgroup.123456789.us-east-1.redshift-serverless.amazonaws.com"
+  username = "admin"
+  password = var.redshift_password
+  database = "dev"
   type     = "serverless"  # Required for Redshift Serverless
 }
 ```
 
-### For Regular Redshift Clusters
+#### For Regular Redshift Clusters
 ```hcl
 provider "redshift" {
-  host     = "your-cluster.redshift.amazonaws.com"
-  username = "your_username"
-  password = "your_password"
-  database = "your_database"
-  port     = 5439
-  sslmode  = "require"
+  host     = "my-cluster.123456789.us-east-1.redshift.amazonaws.com"
+  username = "admin"
+  password = var.redshift_password
+  database = "dev"
   # type parameter omitted for regular clusters
+}
+```
+
+### Step 3: Create Resources
+
+```hcl
+resource "redshift_schema" "example" {
+  name  = "my_schema"
+  owner = "admin"
+}
+
+resource "redshift_user" "example" {
+  name     = "my_user"
+  password = "MySecurePassword123!"
 }
 ```
 
