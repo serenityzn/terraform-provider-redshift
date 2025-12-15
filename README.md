@@ -1,4 +1,4 @@
-# Terraform Provider for AWS Redshift (Fork with Serverless Support)
+# Terraform Provider for AWS Redshift (Fork with Serverless Support).
 
 > [!NOTE]
 > This is a forked version of the original [brainly/terraform-provider-redshift](https://github.com/brainly/terraform-provider-redshift) repository.
