@@ -2,166 +2,288 @@
 
 > [!NOTE]
 > This is a forked version of the original [brainly/terraform-provider-redshift](https://github.com/brainly/terraform-provider-redshift) repository.
-> 
+>
 > **Original Repository Status:** Deprecated - The original repository is no longer maintained.
 >
 > **This Fork:** Adds support for AWS Redshift Serverless features and continues maintenance.
 
-This provider allows to manage with Terraform [AWS Redshift](https://aws.amazon.com/redshift/) objects like users, groups, schemas, etc., including support for Redshift Serverless.
+This provider allows you to manage [AWS Redshift](https://aws.amazon.com/redshift/) objects with Terraform — users, groups, schemas, grants, databases, and more — for both provisioned clusters and Redshift Serverless.
 
 It's published on the [Terraform registry](https://registry.terraform.io/providers/serenityzn/redshift/latest/docs).
 
 ## Features
 
-- **Redshift Serverless Support**: Use the `type = "serverless"` parameter to work with Redshift Serverless deployments
-- **Backward Compatibility**: Works with regular Redshift clusters when `type` is omitted or empty
-- **All Original Features**: Users, groups, schemas, grants, and more
+- **Redshift Serverless Support**: Use `type = "serverless"` for Redshift Serverless deployments
+- **IAM Temporary Credentials for Serverless**: Use `temporary_credentials_serverless` to authenticate via AWS IAM without storing passwords
+- **IAM Temporary Credentials for Provisioned**: Use `temporary_credentials` to authenticate via `redshift:GetClusterCredentials`
+- **Static Credentials**: Username/password authentication for both provisioned and serverless
+- **Backward Compatibility**: All original features continue to work for regular Redshift clusters
+
+---
 
 ## Provider Configuration
 
-### For Redshift Serverless
+### Redshift Serverless — IAM Temporary Credentials (recommended)
+
+Uses `redshift-serverless:GetCredentials` to obtain ephemeral credentials from AWS. No password is stored or managed.
+
 ```hcl
 provider "redshift" {
-  host     = "your-serverless-endpoint.redshift-serverless.amazonaws.com"
-  username = "your_username"
-  password = "your_password"
+  host     = "your-workgroup.123456789012.us-east-1.redshift-serverless.amazonaws.com"
   database = "your_database"
-  port     = 5439
-  sslmode  = "require"
-  type     = "serverless"  # Required for Redshift Serverless
+  type     = "serverless"
+
+  temporary_credentials_serverless {
+    workgroup_name = "your-workgroup"
+    region         = "us-east-1"
+  }
 }
 ```
 
-### For Regular Redshift Clusters
+With cross-account role assumption:
+
+```hcl
+provider "redshift" {
+  host     = "your-workgroup.123456789012.us-east-1.redshift-serverless.amazonaws.com"
+  database = "your_database"
+  type     = "serverless"
+
+  temporary_credentials_serverless {
+    workgroup_name = "your-workgroup"
+    region         = "us-east-1"
+    assume_role {
+      arn = "arn:aws:iam::012345678901:role/role-name"
+    }
+  }
+}
+```
+
+### Redshift Serverless — Static Credentials
+
+```hcl
+provider "redshift" {
+  host     = "your-workgroup.123456789012.us-east-1.redshift-serverless.amazonaws.com"
+  username = "admin"
+  password = "your_password"
+  database = "your_database"
+  type     = "serverless"
+}
+```
+
+### Provisioned Cluster — IAM Temporary Credentials
+
+```hcl
+provider "redshift" {
+  host     = "your-cluster.redshift.amazonaws.com"
+  username = "your_username"
+
+  temporary_credentials {
+    cluster_identifier = "my-cluster"
+    region             = "us-east-1"
+  }
+}
+```
+
+### Provisioned Cluster — Static Credentials
+
 ```hcl
 provider "redshift" {
   host     = "your-cluster.redshift.amazonaws.com"
   username = "your_username"
   password = "your_password"
   database = "your_database"
-  port     = 5439
-  sslmode  = "require"
-  # type parameter omitted for regular clusters
 }
 ```
 
+---
+
+## IAM Temporary Credentials — How It Works
+
+When using `temporary_credentials_serverless`, the provider:
+
+1. Loads AWS credentials from the standard chain (env vars, `~/.aws/credentials`, instance role, etc.)
+2. Calls `redshift-serverless:GetCredentials` with your workgroup name
+3. AWS returns a short-lived `dbUser` + `dbPassword` (valid 15–60 minutes)
+4. The provider connects to Redshift using those ephemeral credentials
+5. The password is never stored in Terraform state
+
+The returned `dbUser` is derived from your IAM identity:
+
+| IAM identity | Redshift username |
+|---|---|
+| `arn:aws:iam::123456789012:role/my-role` | `iamr:my-role` |
+| `arn:aws:iam::123456789012:user/john` | `iam:john` |
+
+> **Note:** The `username` field in the provider is ignored when using `temporary_credentials_serverless` — the username is always determined by the IAM identity.
+
+---
+
+## Limitations of IAM Temporary Credentials on Redshift Serverless
+
+Redshift Serverless restricts certain DDL operations for IAM-authenticated sessions, even for superusers. The following provider resources are affected:
+
+### `redshift_user` — NOT supported with IAM temporary credentials
+
+Creating and dropping users requires the `CREATE USER` system privilege. Redshift Serverless does not grant this to IAM sessions, even when the IAM-mapped user is a superuser.
+
+**Error you will see:**
+```
+pq: must be superuser or have CREATE USER system privilege to create users
+```
+
+**Workaround:** Use a second provider instance with static admin credentials for user management:
+
+```hcl
+# IAM credentials — for schemas, grants, databases
+provider "redshift" {
+  alias    = "iam"
+  host     = var.redshift_host
+  database = var.redshift_database
+  type     = "serverless"
+  temporary_credentials_serverless {
+    workgroup_name = var.workgroup_name
+    region         = var.region
+  }
+}
+
+# Static admin credentials — for user management only
+provider "redshift" {
+  alias    = "superuser"
+  host     = var.redshift_host
+  database = var.redshift_database
+  type     = "serverless"
+  username = var.admin_username
+  password = var.admin_password  # store in AWS Secrets Manager
+}
+
+# Users require superuser provider
+resource "redshift_user" "appuser" {
+  provider = redshift.superuser
+  name     = "appuser"
+  password = "StrongPassword123!"
+}
+
+# Everything else works with IAM provider
+resource "redshift_schema" "myschema" {
+  provider = redshift.iam
+  name     = "myschema"
+}
+
+resource "redshift_grant" "schema_access" {
+  provider    = redshift.iam
+  user        = redshift_user.appuser.name
+  schema      = redshift_schema.myschema.name
+  object_type = "schema"
+  privileges  = ["usage", "create"]
+}
+```
+
+### One-time bootstrap
+
+The IAM-mapped user (e.g. `iamr:my-role`) is auto-created by Redshift Serverless on first connection with minimal privileges. Before Terraform can manage schemas and grants, run this once in Query Editor v2 as the Redshift admin:
+
+```sql
+GRANT CREATE ON DATABASE "your_database" TO "iamr:my-role";
+```
+
+To find your exact IAM username:
+
+```bash
+aws sts get-caller-identity
+# Then run terraform plan — the mapped username appears in outputs
+```
+
+---
+
 ## Requirements
 
-  - [Terraform](https://www.terraform.io/downloads.html) >= 1.0
-  - [Go](https://golang.org/doc/install) 1.17 (to build the provider plugin)
+- [Terraform](https://www.terraform.io/downloads.html) >= 1.0
+- [Go](https://golang.org/doc/install) >= 1.24 (to build the provider plugin)
 
 ## Building The Provider
 
 ```sh
-$ git clone git@github.com:serenityzn/terraform-provider-redshift
+git clone git@github.com:serenityzn/terraform-provider-redshift
+cd terraform-provider-redshift
+make build
 ```
 
-Enter the provider directory and build the provider
+## Testing Locally
+
+Build and install the provider locally without publishing to the registry:
 
 ```sh
-$ cd terraform-provider-redshift
-$ make build
+go build -o ~/.terraform.d/plugins/registry.terraform.io/serenityzn/redshift/1.3.1/darwin_arm64/terraform-provider-redshift_v1.3.1
 ```
-## Development
 
-If you're new to provider development, a good place to start is the [Extending
-Terraform](https://www.terraform.io/docs/extend/index.html) docs.
+Then reference it normally in your Terraform config:
 
-### Running Tests
+```hcl
+terraform {
+  required_providers {
+    redshift = {
+      source  = "serenityzn/redshift"
+      version = "1.3.1"
+    }
+  }
+}
+```
 
-Acceptance tests require a running real AWS Redshift cluster. 
+## Running Tests
+
+**Unit tests** (no infrastructure required):
 
 ```sh
-REDSHIFT_HOST=<cluster ip or DNS>
+go test ./redshift/ -run TestProvider -v
+```
+
+**Acceptance tests against a provisioned cluster:**
+
+```sh
+REDSHIFT_HOST=<cluster endpoint>
 REDSHIFT_USER=root
 REDSHIFT_DATABASE=redshift
 REDSHIFT_PASSWORD=<password>
 make testacc
 ```
 
-If your cluster is only accessible from within the VPC, you can connect via a socks proxy:
+**Acceptance tests against Redshift Serverless:**
+
 ```sh
-ALL_PROXY=socks5[h]://[<socks-user>:<socks-password>@]<socks-host>[:<socks-port>]
-NO_PROXY=127.0.0.1,192.168.0.0/24,*.example.com,localhost
+REDSHIFT_HOST=<serverless endpoint>
+REDSHIFT_DATABASE=<database>
+REDSHIFT_TEMPORARY_CREDENTIALS_SERVERLESS_WORKGROUP=<workgroup-name>
+REDSHIFT_TEMPORARY_CREDENTIALS_SERVERLESS_REGION=us-east-1
+go test ./redshift/ -run TestAccRedshiftServerlessTemporaryCredentials -v
+```
+
+If your cluster is only accessible from within a VPC, connect via a SOCKS proxy:
+
+```sh
+ALL_PROXY=socks5://user:password@host:port
+NO_PROXY=127.0.0.1,localhost
 ```
 
 ## Documentation
 
-Documentation is generated with
-[tfplugindocs](https://github.com/hashicorp/terraform-plugin-docs). Generated
-files are in `docs/` and should not be updated manually. They are derived from:
+Documentation is generated with [tfplugindocs](https://github.com/hashicorp/terraform-plugin-docs). Generated files are in `docs/` and should not be edited manually. They are derived from schema `Description` fields, [examples/](./examples), and [templates/](./templates).
 
-* Schema `Description` fields in the provider Go code.
-* [examples/](./examples)
-* [templates/](./templates)
-
-Use `go generate` to update generated docs.
+```sh
+go generate
+```
 
 ## Releasing
 
-Builds and releases are automated with GitHub Actions and [GoReleaser](https://github.com/goreleaser/goreleaser/). 
-The changelog is managed with [github-changelog-generator](https://github.com/github-changelog-generator/github-changelog-generator).
+Builds and releases are automated with GitHub Actions and [GoReleaser](https://github.com/goreleaser/goreleaser/).
 
-Currently there are a few manual steps to this:
+1. Update `CHANGELOG.md` with the new version entry
+2. Commit all changes
+3. Tag and push:
 
-1. Update the changelog:
-
-   ```sh
-   RELEASE_VERSION=v... \
-   CHANGELOG_GITHUB_TOKEN=... \
-   make changelog
-   ```
-
-   This will commit the changelog locally.
-
-2. Review generated changelog and push:
-
-   View the committed changelog with `git show`. If all is well `git push origin
-   master`.
-
-3. Kick off the release:
-
-   ```sh
-   RELEASE_VERSION=v... \
-   make release
-   ```
-
-   Once the command exits, you can monitor the rest of the process on the
-   [Actions UI](https://github.com/serenityzn/terraform-provider-redshift/actions?query=workflow%3Arelease).
-
-4. Publish release:
-
-   The Action creates the release, but leaves it in "draft" state. Open it up in
-   a [browser](https://github.com/serenityzn/terraform-provider-redshift/releases)
-   and if all looks well, click the publish button.
-
-## Final Solution: Use a Local Provider Plugin Directory
-
-The most reliable way to test your local provider is to use a local plugin directory. Here's what you need to do:
-
-### Step 1: Create a Local Plugin Directory
-```bash
-mkdir -p ~/.terraform.d/plugins/registry.terraform.io/serenityzn/redshift/1.0.0/darwin_arm64/
+```sh
+git tag v1.x.x
+git push origin main
+git push origin v1.x.x
 ```
 
-### Step 2: Copy Your Provider
-```bash
-cp /Users/volodymyrl/.asdf/installs/golang/1.24.2/bin/terraform-provider-redshift ~/.terraform.d/plugins/registry.terraform.io/serenityzn/redshift/1.0.0/darwin_arm64/terraform-provider-redshift_v1.0.0
-```
-
-### Step 3: Remove .terraformrc
-```bash
-rm ~/.terraformrc
-```
-
-### Step 4: Test
-```bash
-cd /Users/volodymyrl/ODDITY/projects/infra-terragrunt-code/live/brand3/stg/us-east-1/datateam/glue-provider
-terragrunt plan --non-interactive
-```
-
-This approach:
-- ✅ **Completely bypasses registry queries**
-- ✅ **Works with Terragrunt**
-- ✅ **Uses your local provider**
-- ✅ **Is the standard way to test providers locally**
+The release workflow triggers automatically on the new tag and publishes to the Terraform Registry.

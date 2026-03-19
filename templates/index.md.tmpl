@@ -2,13 +2,13 @@
 layout: ""
 page_title: "Provider: Redshift"
 description: |-
-  The Redshift provider provides configuration management resources for AWS Redshift.
+  The Redshift provider provides configuration management resources for AWS Redshift and Redshift Serverless.
 ---
 
 # Redshift Provider
 
 The Redshift provider provides configuration management resources for
-[AWS Redshift](https://aws.amazon.com/redshift/).
+[AWS Redshift](https://aws.amazon.com/redshift/), including both provisioned clusters and Redshift Serverless.
 
 ## Example Usage
 
@@ -16,15 +16,78 @@ The Redshift provider provides configuration management resources for
 
 {{ tffile "examples/provider/provider.tf" }}
 
-### Authentication using temporary credentials
+### Authentication using temporary credentials (provisioned cluster)
 
 {{ tffile "examples/provider/provider_using_temporary_credentials.tf" }}
 
-### Authentication using temporary credentials in cross-account scenario
+### Authentication using temporary credentials in cross-account scenario (provisioned cluster)
 
 {{ tffile "examples/provider/provider_using_temporary_credentials_cross_account.tf" }}
 
+### Authentication using temporary credentials (Redshift Serverless)
+
+{{ tffile "examples/provider/provider_using_temporary_credentials_serverless.tf" }}
+
+### Authentication using temporary credentials in cross-account scenario (Redshift Serverless)
+
+{{ tffile "examples/provider/provider_using_temporary_credentials_serverless_cross_account.tf" }}
+
 {{ .SchemaMarkdown | trimspace }}
+
+## Redshift Serverless — IAM Temporary Credentials
+
+When using `temporary_credentials_serverless`, the provider calls `redshift-serverless:GetCredentials`
+to obtain short-lived credentials from AWS. No password is stored in Terraform state.
+
+The database username is derived from your IAM identity automatically:
+
+| IAM identity | Redshift username |
+|---|---|
+| `arn:aws:iam::123456789012:role/my-role` | `iamr:my-role` |
+| `arn:aws:iam::123456789012:user/john` | `iam:john` |
+
+~> **Note:** The `username` field is ignored when using `temporary_credentials_serverless`.
+
+### Limitations
+
+The `redshift_user` resource does not work with `temporary_credentials_serverless`.
+Redshift Serverless restricts `CREATE USER` for IAM-authenticated sessions, even for superusers.
+
+**Workaround:** Use two provider instances — one with IAM credentials for schemas/grants,
+and one with static admin credentials for user management:
+
+```terraform
+provider "redshift" {
+  alias    = "iam"
+  host     = var.redshift_host
+  database = var.redshift_database
+  type     = "serverless"
+  temporary_credentials_serverless {
+    workgroup_name = var.workgroup_name
+    region         = var.region
+  }
+}
+
+provider "redshift" {
+  alias    = "superuser"
+  host     = var.redshift_host
+  database = var.redshift_database
+  type     = "serverless"
+  username = var.admin_username
+  password = var.admin_password
+}
+
+resource "redshift_user" "example" {
+  provider = redshift.superuser
+  name     = "appuser"
+  password = "StrongPassword123!"
+}
+
+resource "redshift_schema" "example" {
+  provider = redshift.iam
+  name     = "myschema"
+}
+```
 
 ## Proxy Support
 

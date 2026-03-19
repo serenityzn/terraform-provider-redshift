@@ -1,13 +1,46 @@
 # Changelog
 
-## [v1.3.0](https://github.com/serenityzn/terraform-provider-redshift/tree/v1.3.0) (2026-03-19)
+## [v1.3.4](https://github.com/serenityzn/terraform-provider-redshift/tree/v1.3.4) (2026-03-19)
 
-[Full Changelog](https://github.com/serenityzn/terraform-provider-redshift/compare/v1.2.1...v1.3.0)
+[Full Changelog](https://github.com/serenityzn/terraform-provider-redshift/compare/v1.3.3...v1.3.4)
+
+**Fixed bugs:**
+
+- Fix `column "useconnlimit" does not exist` error on Redshift Serverless in `data.redshift_user` and `resource.redshift_user` — `pg_user` does not expose this column, defaulting to `UNLIMITED`
+- Fix `pg_user_info` permission errors in `data.redshift_user` serverless path — switch to `pg_user`
+
+---
+
+## ~~[v1.3.3](https://github.com/serenityzn/terraform-provider-redshift/tree/v1.3.3)~~ — DEPRECATED ⚠️
+
+> **Do not use.** Contains `column "useconnlimit" does not exist` error for `data.redshift_user` on Redshift Serverless. Upgrade to v1.3.4.
+
+---
+
+## ~~[v1.3.2](https://github.com/serenityzn/terraform-provider-redshift/tree/v1.3.2)~~ — DEPRECATED ⚠️
+
+> **Do not use.** Contains `permission denied for relation pg_user_info` errors on Redshift Serverless. Upgrade to v1.3.4.
+
+---
+
+## ~~[v1.3.1](https://github.com/serenityzn/terraform-provider-redshift/tree/v1.3.1)~~ — DEPRECATED ⚠️
+
+> **Do not use.** Contains `permission denied for relation pg_user_info` and `svv_schema_quota_state` errors on Redshift Serverless. Upgrade to v1.3.4.
+
+---
+
+## ~~[v1.3.0](https://github.com/serenityzn/terraform-provider-redshift/tree/v1.3.0)~~ — DEPRECATED ⚠️
+
+> **Do not use.** Initial release of `temporary_credentials_serverless` — contains broken GoReleaser asset naming and multiple `pg_user_info` permission errors on Redshift Serverless. Upgrade to v1.3.4.
 
 **Implemented enhancements:**
 
 - Add `temporary_credentials_serverless` block to support IAM-based authentication for Redshift Serverless via `redshift-serverless:GetCredentials`
 - Support optional `assume_role` and `region` overrides within `temporary_credentials_serverless`
+
+**Known limitations (all versions v1.3.x):**
+
+- `redshift_user` resource does not work with `temporary_credentials_serverless` — Redshift Serverless restricts `CREATE USER` for IAM sessions. Use a second provider instance with static admin credentials for user management. See README for details.
 
 ## [v1.2.0](https://github.com/serenityzn/terraform-provider-redshift/tree/v1.2.0) (2024-12-19)
 
