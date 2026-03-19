@@ -11,6 +11,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/credentials/stscreds"
 	"github.com/aws/aws-sdk-go-v2/service/redshift"
+	"github.com/aws/aws-sdk-go-v2/service/redshiftserverless"
 	"github.com/aws/aws-sdk-go-v2/service/sts"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
@@ -44,6 +45,7 @@ func Provider() *schema.Provider {
 				Sensitive:   true,
 				ConflictsWith: []string{
 					"temporary_credentials",
+					"temporary_credentials_serverless",
 				},
 			},
 			"port": {
@@ -94,6 +96,7 @@ func Provider() *schema.Provider {
 				MaxItems:    1,
 				ConflictsWith: []string{
 					"password",
+					"temporary_credentials_serverless",
 				},
 				Elem: &schema.Resource{
 					Schema: map[string]*schema.Schema{
@@ -124,6 +127,38 @@ func Provider() *schema.Provider {
 								Type:         schema.TypeString,
 								ValidateFunc: dbGroupValidate,
 							},
+						},
+						"duration_seconds": {
+							Type:         schema.TypeInt,
+							Optional:     true,
+							Description:  "The number of seconds until the returned temporary password expires.",
+							ValidateFunc: validation.IntBetween(900, 3600),
+						},
+						"assume_role": assumeRoleSchema(),
+					},
+				},
+			},
+			"temporary_credentials_serverless": {
+				Type:        schema.TypeList,
+				Optional:    true,
+				Description: "Configuration for obtaining a temporary password using redshift-serverless:GetCredentials",
+				MaxItems:    1,
+				ConflictsWith: []string{
+					"password",
+					"temporary_credentials",
+				},
+				Elem: &schema.Resource{
+					Schema: map[string]*schema.Schema{
+						"workgroup_name": {
+							Type:         schema.TypeString,
+							Required:     true,
+							Description:  "The name of the Redshift Serverless workgroup for which you are requesting credentials.",
+							ValidateFunc: validation.StringLenBetween(1, 2147483647),
+						},
+						"region": {
+							Type:        schema.TypeString,
+							Optional:    true,
+							Description: "The AWS region where the Redshift Serverless workgroup is located.",
 						},
 						"duration_seconds": {
 							Type:         schema.TypeInt,
@@ -188,6 +223,13 @@ func resolveCredentials(d *schema.ResourceData) (string, string, error) {
 		log.Println("[DEBUG] using temporary credentials authentication")
 		dbUser, dbPassword, err := temporaryCredentials(username.(string), d)
 		log.Printf("[DEBUG] got temporary credentials with username %s\n", dbUser)
+		return dbUser, dbPassword, err
+	}
+
+	if _, useServerlessCredentials := d.GetOk("temporary_credentials_serverless.0"); useServerlessCredentials {
+		log.Println("[DEBUG] using temporary serverless credentials authentication")
+		dbUser, dbPassword, err := temporaryCredentialsServerless(d)
+		log.Printf("[DEBUG] got temporary serverless credentials with username %s\n", dbUser)
 		return dbUser, dbPassword, err
 	}
 
@@ -271,6 +313,67 @@ func redshiftSdkClient(d *schema.ResourceData) (*redshift.Client, error) {
 		cfg.Credentials = stscreds.NewAssumeRoleProvider(stsClient, parsedRoleArn, opts)
 	}
 	return redshift.NewFromConfig(cfg), nil
+}
+
+// temporaryCredentialsServerless gets temporary credentials using redshift-serverless:GetCredentials.
+// Unlike GetClusterCredentials for provisioned clusters, this API does not accept a DbUser input;
+// the returned DbUser is derived from the IAM identity making the call.
+func temporaryCredentialsServerless(d *schema.ResourceData) (string, string, error) {
+	sdkClient, err := redshiftServerlessSdkClient(d)
+	if err != nil {
+		return "", "", err
+	}
+	workgroupName, workgroupNameIsSet := d.GetOk("temporary_credentials_serverless.0.workgroup_name")
+	if !workgroupNameIsSet {
+		return "", "", fmt.Errorf("temporary_credentials_serverless not configured")
+	}
+	input := &redshiftserverless.GetCredentialsInput{
+		WorkgroupName: aws.String(workgroupName.(string)),
+		DbName:        aws.String(d.Get("database").(string)),
+	}
+	if durationSeconds, ok := d.GetOk("temporary_credentials_serverless.0.duration_seconds"); ok {
+		duration := durationSeconds.(int)
+		if duration > 0 {
+			input.DurationSeconds = aws.Int32(int32(duration))
+		}
+	}
+	log.Println("[DEBUG] making redshift-serverless GetCredentials request")
+	response, err := sdkClient.GetCredentials(context.TODO(), input)
+	if err != nil {
+		return "", "", err
+	}
+	return aws.ToString(response.DbUser), aws.ToString(response.DbPassword), nil
+}
+
+func redshiftServerlessSdkClient(d *schema.ResourceData) (*redshiftserverless.Client, error) {
+	cfg, err := config.LoadDefaultConfig(context.TODO())
+	if err != nil {
+		return nil, err
+	}
+
+	if region := d.Get("temporary_credentials_serverless.0.region").(string); region != "" {
+		cfg.Region = region
+	}
+
+	if _, ok := d.GetOk("temporary_credentials_serverless.0.assume_role"); ok {
+		var parsedRoleArn string
+		if roleArn, ok := d.GetOk("temporary_credentials_serverless.0.assume_role.0.arn"); ok {
+			parsedRoleArn = roleArn.(string)
+		}
+		log.Printf("[DEBUG] Assuming role provided in serverless configuration: [%s]", parsedRoleArn)
+		opts := func(options *stscreds.AssumeRoleOptions) {
+			options.Duration = time.Duration(defaultTemporaryCredentialsAssumeRoleDurationInSeconds) * time.Second
+			if externalID, ok := d.GetOk("temporary_credentials_serverless.0.assume_role.0.external_id"); ok {
+				options.ExternalID = aws.String(externalID.(string))
+			}
+			if sessionName, ok := d.GetOk("temporary_credentials_serverless.0.assume_role.0.session_name"); ok {
+				options.RoleSessionName = sessionName.(string)
+			}
+		}
+		stsClient := sts.NewFromConfig(cfg)
+		cfg.Credentials = stscreds.NewAssumeRoleProvider(stsClient, parsedRoleArn, opts)
+	}
+	return redshiftserverless.NewFromConfig(cfg), nil
 }
 
 func assumeRoleSchema() *schema.Schema {
