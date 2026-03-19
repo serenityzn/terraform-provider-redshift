@@ -84,7 +84,7 @@ func dataSourceRedshiftUserRead(db *DBConnection, d *schema.ResourceData) error 
 			&userConnLimit,
 		}
 
-		userSQL := fmt.Sprintf("SELECT %s FROM pg_user_info WHERE usename = $1", strings.Join(columns, ","))
+		userSQL := fmt.Sprintf("SELECT %s FROM pg_user WHERE usename = $1", strings.Join(columns, ","))
 		err := db.QueryRow(userSQL, userName).Scan(values...)
 		if err != nil {
 			return err
@@ -124,7 +124,11 @@ func dataSourceRedshiftUserRead(db *DBConnection, d *schema.ResourceData) error 
 		}
 	}
 
-	err := db.QueryRow("SELECT COALESCE(valuntil, 'infinity') FROM pg_user_info WHERE usesysid = $1", useSysID).Scan(&userValidUntil)
+	userInfoTable := "pg_user_info"
+	if db.client.config.Type == "serverless" {
+		userInfoTable = "pg_user"
+	}
+	err := db.QueryRow(fmt.Sprintf("SELECT COALESCE(valuntil, 'infinity') FROM %s WHERE usesysid = $1", userInfoTable), useSysID).Scan(&userValidUntil)
 	if err != nil {
 		return err
 	}
