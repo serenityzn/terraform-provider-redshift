@@ -1,5 +1,14 @@
 # Changelog
 
+## [v1.3.0](https://github.com/serenityzn/terraform-provider-redshift/tree/v1.3.0) (2026-03-19)
+
+[Full Changelog](https://github.com/serenityzn/terraform-provider-redshift/compare/v1.2.1...v1.3.0)
+
+**Implemented enhancements:**
+
+- Add `temporary_credentials_serverless` block to support IAM-based authentication for Redshift Serverless via `redshift-serverless:GetCredentials`
+- Support optional `assume_role` and `region` overrides within `temporary_credentials_serverless`
+
 ## [v1.2.0](https://github.com/serenityzn/terraform-provider-redshift/tree/v1.2.0) (2024-12-19)
 
 [Full Changelog](https://github.com/serenityzn/terraform-provider-redshift/compare/v1.1.0...v1.2.0)
