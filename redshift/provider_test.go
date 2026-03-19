@@ -133,3 +133,86 @@ func prepareRedshiftTemporaryCredentialsTestCases(t *testing.T, provider *schema
 	os.Setenv("REDSHIFT_USER", username)
 	initTemporaryCredentialsProvider(t, provider)
 }
+
+// TestAccRedshiftServerlessTemporaryCredentials tests the full connection flow
+// for Redshift Serverless using GetCredentials, and validates that all SQL
+// queries used by the provider actually execute successfully against a real
+// Serverless cluster. Requires:
+//
+//	REDSHIFT_HOST                                      - Serverless endpoint
+//	REDSHIFT_DATABASE                                  - Database name
+//	REDSHIFT_TEMPORARY_CREDENTIALS_SERVERLESS_WORKGROUP - Workgroup name
+//	REDSHIFT_TEMPORARY_CREDENTIALS_SERVERLESS_REGION   - AWS region (optional)
+func TestAccRedshiftServerlessTemporaryCredentials(t *testing.T) {
+	workgroupName := getEnvOrSkip("REDSHIFT_TEMPORARY_CREDENTIALS_SERVERLESS_WORKGROUP", t)
+	region := os.Getenv("REDSHIFT_TEMPORARY_CREDENTIALS_SERVERLESS_REGION")
+
+	provider := Provider()
+
+	cfg := map[string]interface{}{
+		"host":     os.Getenv("REDSHIFT_HOST"),
+		"database": os.Getenv("REDSHIFT_DATABASE"),
+		"type":     "serverless",
+		"username": "unused", // ignored by serverless GetCredentials
+		"temporary_credentials_serverless": []interface{}{
+			map[string]interface{}{
+				"workgroup_name": workgroupName,
+				"region":         region,
+			},
+		},
+	}
+
+	diagnostics := provider.Configure(context.Background(), terraform.NewResourceConfigRaw(cfg))
+	if diagnostics != nil && diagnostics.HasError() {
+		t.Fatalf("Failed to configure serverless provider: %v", diagnostics)
+	}
+
+	client, ok := provider.Meta().(*Client)
+	if !ok {
+		t.Fatal("Unable to initialize client")
+	}
+
+	db, err := client.Connect()
+	if err != nil {
+		t.Fatalf("Unable to connect to Redshift Serverless: %s", err)
+	}
+	defer db.Close()
+
+	// Validate the exact queries the provider runs on the serverless path.
+	// These catch column-not-found errors before they reach production.
+	queries := []struct {
+		name string
+		sql  string
+	}{
+		{
+			name: "pg_user basic columns",
+			sql:  "SELECT usesysid, usecreatedb, usesuper FROM pg_user LIMIT 1",
+		},
+		{
+			name: "pg_user valuntil",
+			sql:  "SELECT COALESCE(valuntil, 'infinity') FROM pg_user LIMIT 1",
+		},
+		{
+			name: "pg_user current user lookup",
+			sql:  "SELECT usesysid, usecreatedb, usesuper FROM pg_user WHERE usename = CURRENT_USER",
+		},
+		{
+			name: "schema owner join",
+			sql: `SELECT trim(svv_all_schemas.schema_name), trim(pg_user.usename)
+				  FROM svv_all_schemas
+				  LEFT JOIN pg_user ON pg_user.usesysid = svv_all_schemas.schema_owner
+				  WHERE svv_all_schemas.database_name = current_database()
+				  LIMIT 1`,
+		},
+	}
+
+	for _, q := range queries {
+		t.Run(q.name, func(t *testing.T) {
+			rows, err := db.Query(q.sql)
+			if err != nil {
+				t.Fatalf("Query %q failed: %s\nSQL: %s", q.name, err, q.sql)
+			}
+			rows.Close()
+		})
+	}
+}

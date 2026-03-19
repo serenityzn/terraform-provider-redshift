@@ -1,5 +1,16 @@
 # Changelog
 
+## [v1.3.5](https://github.com/serenityzn/terraform-provider-redshift/tree/v1.3.5) (2026-03-19)
+
+[Full Changelog](https://github.com/serenityzn/terraform-provider-redshift/compare/v1.3.4...v1.3.5)
+
+**Documentation:**
+
+- Add `temporary_credentials_serverless` schema documentation to Terraform Registry provider page
+- Document IAM username mapping (`iamr:role-name`) for Redshift Serverless
+- Document `redshift_user` limitation with IAM temporary credentials and two-provider workaround
+- Update README with full usage examples and limitations
+
 ## [v1.3.4](https://github.com/serenityzn/terraform-provider-redshift/tree/v1.3.4) (2026-03-19)
 
 [Full Changelog](https://github.com/serenityzn/terraform-provider-redshift/compare/v1.3.3...v1.3.4)
