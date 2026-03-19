@@ -69,19 +69,16 @@ func dataSourceRedshiftUserRead(db *DBConnection, d *schema.ResourceData) error 
 
 	// Use different queries based on Redshift type
 	if db.client.config.Type == "serverless" {
-		// For Redshift Serverless, use pg_user_info with available columns
 		columns := []string{
 			"usesysid",
 			"usecreatedb",
 			"usesuper",
-			"COALESCE(useconnlimit::TEXT, 'UNLIMITED')",
 		}
 
 		values := []interface{}{
 			&useSysID,
 			&userCreateDB,
 			&userSuperuser,
-			&userConnLimit,
 		}
 
 		userSQL := fmt.Sprintf("SELECT %s FROM pg_user WHERE usename = $1", strings.Join(columns, ","))
@@ -90,8 +87,8 @@ func dataSourceRedshiftUserRead(db *DBConnection, d *schema.ResourceData) error 
 			return err
 		}
 
-		// For serverless, set default values for missing columns
-		userSessionTimeout = "0" // Default session timeout
+		userConnLimit = "UNLIMITED"
+		userSessionTimeout = "0"
 		if userSuperuser {
 			userSyslogAccess = "UNRESTRICTED"
 		} else {

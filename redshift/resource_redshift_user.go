@@ -277,23 +277,21 @@ func resourceRedshiftUserReadImpl(db *DBConnection, d *schema.ResourceData) erro
 
 	// Use different queries based on Redshift type
 	if db.client.config.Type == "serverless" {
-		// For Redshift Serverless, use pg_user_info with available columns
 		columns := []string{
 			"usename",
 			"usecreatedb",
 			"usesuper",
-			"COALESCE(useconnlimit::TEXT, 'UNLIMITED')",
 		}
 
 		values := []interface{}{
 			&userName,
 			&userCreateDB,
 			&userSuperuser,
-			&userConnLimit,
 		}
 
-		userSQL := fmt.Sprintf("SELECT %s FROM pg_user_info WHERE usesysid = $1", strings.Join(columns, ","))
+		userSQL := fmt.Sprintf("SELECT %s FROM pg_user WHERE usesysid = $1", strings.Join(columns, ","))
 		err := db.QueryRow(userSQL, useSysID).Scan(values...)
+		userConnLimit = "UNLIMITED"
 		switch {
 		case err == sql.ErrNoRows:
 			log.Printf("[WARN] Redshift User (%s) not found", useSysID)
@@ -342,7 +340,11 @@ func resourceRedshiftUserReadImpl(db *DBConnection, d *schema.ResourceData) erro
 		}
 	}
 
-	err := db.QueryRow("SELECT COALESCE(valuntil, 'infinity') FROM pg_user_info WHERE usesysid = $1", useSysID).Scan(&userValidUntil)
+	userInfoTable := "pg_user_info"
+	if db.client.config.Type == "serverless" {
+		userInfoTable = "pg_user"
+	}
+	err := db.QueryRow(fmt.Sprintf("SELECT COALESCE(valuntil, 'infinity') FROM %s WHERE usesysid = $1", userInfoTable), useSysID).Scan(&userValidUntil)
 	switch {
 	case err == sql.ErrNoRows:
 		log.Printf("[WARN] Redshift User (%s) not found", useSysID)
