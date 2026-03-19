@@ -422,17 +422,21 @@ func resourceRedshiftSchemaReadImpl(db *DBConnection, d *schema.ResourceData) er
 	var schemaOwner, schemaName, schemaType string
 
 	// Step 1: get basic schema info
-	err := db.QueryRow(`
+	ownerTable := "pg_user_info"
+	if db.client.config.Type == "serverless" {
+		ownerTable = "pg_user"
+	}
+	err := db.QueryRow(fmt.Sprintf(`
 			SELECT
 				trim(svv_all_schemas.schema_name),
-				trim(pg_user_info.usename),
+				trim(%s.usename),
 				trim(svv_all_schemas.schema_type)
 			FROM svv_all_schemas
 			INNER JOIN pg_namespace ON (svv_all_schemas.database_name = $1 and svv_all_schemas.schema_name = pg_namespace.nspname)
-	LEFT JOIN pg_user_info
-		ON (svv_all_schemas.database_name = $1 and pg_user_info.usesysid = svv_all_schemas.schema_owner)
+	LEFT JOIN %s
+		ON (%s.usesysid = svv_all_schemas.schema_owner)
 	where svv_all_schemas.database_name = $1
-	AND pg_namespace.oid = $2`, db.client.databaseName, d.Id()).Scan(&schemaName, &schemaOwner, &schemaType)
+	AND pg_namespace.oid = $2`, ownerTable, ownerTable, ownerTable), db.client.databaseName, d.Id()).Scan(&schemaName, &schemaOwner, &schemaType)
 	if err != nil {
 		return err
 	}
