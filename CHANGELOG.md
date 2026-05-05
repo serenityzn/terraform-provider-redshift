@@ -1,5 +1,14 @@
 # Changelog
 
+## [v1.3.6](https://github.com/serenityzn/terraform-provider-redshift/tree/v1.3.6) (2026-05-05)
+
+[Full Changelog](https://github.com/serenityzn/terraform-provider-redshift/compare/v1.3.5...v1.3.6)
+
+**Fixed bugs:**
+
+- Fix `redshift_schema` external schema read/import for Redshift Serverless `rds_mysql_source` schemas that report `eskind = 8`
+- Align external schema source mapping with AWS behavior by treating `eskind = 5` as `redshift_source`
+
 ## [v1.3.5](https://github.com/serenityzn/terraform-provider-redshift/tree/v1.3.5) (2026-03-19)
 
 [Full Changelog](https://github.com/serenityzn/terraform-provider-redshift/compare/v1.3.4...v1.3.5)
